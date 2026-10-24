@@ -1,0 +1,6 @@
+Sunshine-Headless.log
+*.log
+*.tmp
+*.bak
+*.lnk
+.vs/
