@@ -87,7 +87,7 @@ foreach ($entry in $displayOptions.GetEnumerator()) {
         $updated += "$key = $value$newline"
     }
 }
-if ($updated -ne $content) {
+if ($updated -cne $content) {
     if ($exists) {
         $backupPath = "$ConfigPath.bak"
         if (-not (Test-Path -LiteralPath $backupPath)) {
