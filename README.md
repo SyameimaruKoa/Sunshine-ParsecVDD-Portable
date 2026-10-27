@@ -24,7 +24,7 @@
 
 ## インストール
 
-本リポジトリの次の5ファイルを `sunshine.exe` と同じフォルダーにコピーする。
+本リポジトリの次の7ファイルを `sunshine.exe` と同じフォルダーにコピーする。
 
 ```text
 Sunshine/
@@ -34,6 +34,8 @@ Sunshine/
     Create-Sunshine-Shortcut.ps1
     Start-Sunshine-ParsecVDD-v2.ps1
     Set-Sunshine-AutoDisplay.ps1
+    Set-Sunshine-DpiScaling.ps1
+    HeadlessSettings.json
 ```
 
 `sunshine.exe` の例: `C:\Users\<ユーザー名>\Documents\Sunshine\sunshine.exe`。
@@ -84,8 +86,26 @@ dd_refresh_rate_option = auto
 
 - **解像度**：Moonlightで要求した解像度に変更する。
 - **リフレッシュレート**：Moonlightで要求したFPSに変更する（ドライバーが対応する表示モードのみ）。
-- **拡大率（WindowsのDPIスケール）**：変更しない。Windowsの対象仮想モニターで指定した拡大率を使い続ける。必要ならWindowsのディスプレイ設定で一度だけ好みの値に固定する。
+- **拡大率（WindowsのDPIスケール）**：`HeadlessSettings.json` の `dpiScaling` で `keep`（Windows設定を維持）または `100`（Parsec VDD仮想モニターのみ100%に固定）を選択する。Sunshine本体にはDPI拡大率の自動制御機能はない。
 - Moonlight側の **Optimize game settings（ゲーム設定を最適化）** を有効にする。解像度の自動変更に必要。
+
+### 拡大率100%固定（任意）
+
+`HeadlessSettings.json` の値だけを変更する。通常は既定の `keep` を使用する。
+
+```json
+{
+    "dpiScaling": "100"
+}
+```
+
+- `"keep"`：Windowsの拡大率を変更しない（既定）。Sunshine側の解像度・FPSへの自動追従は有効。
+- `"100"`：**Parsec VDDの仮想画面だけ**を100%に変更する。Sunshine起動前および稼働中（3秒間隔）に確認し、解像度変更後も100%に戻す。追加サービスは不要。
+- 仮想画面は `PSCCDD0` IDまたは `ParsecVDA` 名で識別する。識別できない場合は物理モニターを変更せず、警告を記録する。
+- 100%固定にはWindowsの非公開API（`DisplayConfigGetDeviceInfo(-3)`、`DisplayConfigSetDeviceInfo(-4)`）を利用する。Windowsの更新によって動作しなくなる可能性があり、その場合もSunshineの配信は継続する。
+- `keep` に切り替えても、過去にWindowsが保存したDPI設定を自動的に元に戻すわけではない。
+
+参考実装：[lihas/windows-DPI-scaling-sample](https://github.com/lihas/windows-DPI-scaling-sample) / [imniko/SetDPI](https://github.com/imniko/SetDPI)。
 
 `output_name` にモニターGUIDを設定した場合は `ensure_only_display` を使用する。未設定の場合は、物理モニターを誤って無効化しないよう `ensure_active` に切り替える。Headless運用のため、次項の手順で**Parsec仮想モニターのGUID**を設定すること。
 
