@@ -98,7 +98,13 @@ if ($updated -cne $content) {
     try {
         [IO.File]::WriteAllText($temporaryPath, $updated, $encoding)
         if ($exists) {
-            [IO.File]::Replace($temporaryPath, $ConfigPath, $null)
+            # Windows PowerShell 5.1 may reject a null replacement backup path.
+            # A unique temporary backup keeps the persistent .bak untouched.
+            $replacementBackupPath = "$ConfigPath.replace-backup.$([Guid]::NewGuid().ToString('N'))"
+            [IO.File]::Replace($temporaryPath, $ConfigPath, $replacementBackupPath)
+            if (Test-Path -LiteralPath $replacementBackupPath -PathType Leaf) {
+                Remove-Item -LiteralPath $replacementBackupPath -Force -ErrorAction SilentlyContinue
+            }
         }
         else {
             [IO.File]::Move($temporaryPath, $ConfigPath)
