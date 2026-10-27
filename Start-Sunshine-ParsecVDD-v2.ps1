@@ -351,6 +351,25 @@ try {
     }
     & $displaySettingsScript -SunshineExe $SunshineExe -ConfigPath $ConfigPath
 
+    # Read scaling policy once. keep never calls the undocumented DPI APIs.
+    $headlessSettings = Join-Path -Path (Split-Path -Parent $MyInvocation.MyCommand.Path) -ChildPath 'HeadlessSettings.json'
+    $dpiMode = 'keep'
+    if (Test-Path -LiteralPath $headlessSettings -PathType Leaf) {
+        $options = Get-Content -LiteralPath $headlessSettings -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($null -ne $options.dpiScaling) {
+            $dpiMode = [string]$options.dpiScaling
+        }
+    }
+    if ($dpiMode -cnotin @('keep', '100')) {
+        throw "dpiScalingはkeepまたは100を指定するのじゃ: $dpiMode"
+    }
+    if ($dpiMode -eq '100') {
+        $dpiScript = Join-Path -Path (Split-Path -Parent $MyInvocation.MyCommand.Path) -ChildPath 'Set-Sunshine-DpiScaling.ps1'
+        if (-not (Test-Path -LiteralPath $dpiScript -PathType Leaf)) {
+            throw "拡大率制御スクリプトが見つからぬ: $dpiScript"
+        }
+    }
+
     if ($StartupDelaySeconds -gt 0) {
         Start-Sleep -Seconds $StartupDelaySeconds
     }
@@ -365,10 +384,52 @@ try {
         $launchOptions['ArgumentList'] = ('"' + [IO.Path]::GetFullPath($ConfigPath) + '"')
     }
 
+    # Apply to the virtual monitor before starting Sunshine.
+    $lastDpiResult = ''
+    if ($dpiMode -eq '100') {
+        try {
+            $lastDpiResult = [string](& $dpiScript -Mode '100')
+            if ($lastDpiResult -eq 'not-found') {
+                Write-Warning 'Parsec仮想ディスプレイがまだ有効になっていない。Sunshine起動後に再確認する。'
+            }
+            elseif ($lastDpiResult -eq 'changed-to-100') {
+                Write-Host 'Parsec仮想ディスプレイの拡大率を100%にしたぞ。'
+            }
+        }
+        catch {
+            Write-Warning "拡大率100%への切り替えに失敗: $_"
+        }
+    }
+
     Write-Host "Sunshineを起動するのじゃ: $SunshineExe"
     $sunshine = Start-Process @launchOptions
     try {
-        $sunshine.WaitForExit()
+        if ($dpiMode -eq '100') {
+            # Sunshine changes the display mode when Moonlight connects.
+            # Reuse this PowerShell process; no additional service is needed.
+            while (-not $sunshine.WaitForExit(3000)) {
+                try {
+                    $dpiResult = [string](& $dpiScript -Mode '100')
+                    if ($dpiResult -eq 'changed-to-100') {
+                        Write-Host 'Parsec仮想ディスプレイの拡大率を100%に再設定したぞ。'
+                    }
+                    elseif ($dpiResult -eq 'not-found' -and $lastDpiResult -ne 'not-found') {
+                        Write-Warning 'Parsec仮想ディスプレイが見つからぬ。次回再確認する。'
+                    }
+                    $lastDpiResult = $dpiResult
+                }
+                catch {
+                    $message = [string]$_
+                    if ($lastDpiResult -ne $message) {
+                        Write-Warning "拡大率100%の維持に失敗: $message"
+                    }
+                    $lastDpiResult = $message
+                }
+            }
+        }
+        else {
+            $sunshine.WaitForExit()
+        }
         $sunshine.Refresh()
         Write-Host "Sunshine終了コード: $($sunshine.ExitCode)"
         if ([PortableParsecVdd]::GetPingError()) {
