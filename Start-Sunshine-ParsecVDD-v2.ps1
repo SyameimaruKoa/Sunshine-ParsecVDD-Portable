@@ -345,6 +345,11 @@ try {
     $index = [PortableParsecVdd]::Start()
     $vddStarted = $true
     Write-Host "Parsec仮想ディスプレイを生成したぞ。Index=$index"
+    $displaySettingsScript = Join-Path -Path (Split-Path -Parent $MyInvocation.MyCommand.Path) -ChildPath 'Set-Sunshine-AutoDisplay.ps1'
+    if (-not (Test-Path -LiteralPath $displaySettingsScript -PathType Leaf)) {
+        throw "Sunshineの画面設定スクリプトが見つからぬ: $displaySettingsScript"
+    }
+    & $displaySettingsScript -SunshineExe $SunshineExe -ConfigPath $ConfigPath
 
     if ($StartupDelaySeconds -gt 0) {
         Start-Sleep -Seconds $StartupDelaySeconds
