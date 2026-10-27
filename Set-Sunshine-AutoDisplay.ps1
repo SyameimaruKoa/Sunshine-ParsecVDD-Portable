@@ -54,7 +54,7 @@ if ($bytes.Length -ge 2 -and (($bytes[0] -eq 255 -and $bytes[1] -eq 254) -or ($b
     throw 'sunshine.conf がUTF-16形式じゃ。元の文字コードを保つため変更せぬ。'
 }
 $hasBom = $bytes.Length -ge 3 -and $bytes[0] -eq 239 -and $bytes[1] -eq 187 -and $bytes[2] -eq 191
-$encoding = New-Object System.Text.UTF8Encoding($hasBom, $true)
+$encoding = [System.Text.UTF8Encoding]::new($hasBom, $true)
 $offset = if ($hasBom) { 3 } else { 0 }
 $content = $encoding.GetString($bytes, $offset, $bytes.Length - $offset)
 $updated = $content
