@@ -24,7 +24,7 @@
 
 ## インストール
 
-本リポジトリの次の4ファイルを `sunshine.exe` と同じフォルダーにコピーする。
+本リポジトリの次の5ファイルを `sunshine.exe` と同じフォルダーにコピーする。
 
 ```text
 Sunshine/
@@ -33,11 +33,12 @@ Sunshine/
     Launch-Sunshine-Headless.ps1
     Create-Sunshine-Shortcut.ps1
     Start-Sunshine-ParsecVDD-v2.ps1
+    Set-Sunshine-AutoDisplay.ps1
 ```
 
 `sunshine.exe` の例: `C:\Users\<ユーザー名>\Documents\Sunshine\sunshine.exe`。
 
-**既存の設定、`apps.json`、`sunshine.conf`、MPO、Game DVR、電源プランは変更しない。** `sunshine-vdd` のサービス用インストーラーとは別実装。
+**`apps.json`、MPO、Game DVR、電源プランには触れない。** `sunshine.conf` では表示関連の3項目のみ自動追従用に設定する。 `sunshine-vdd` のサービス用インストーラーとは別実装。
 
 ### ワンクリック起動
 
@@ -71,6 +72,25 @@ Sunshine-Headless.cmd --help
 
 ## Sunshineの画面設定
 
+### Moonlightの解像度・FPSに自動追従
+
+ランチャーはSunshine起動前に `Set-Sunshine-AutoDisplay.ps1` を実行し、`config/sunshine.conf` 内の表示関連3項目のみを設定する。
+
+```ini
+dd_configuration_option = ensure_only_display
+dd_resolution_option = auto
+dd_refresh_rate_option = auto
+```
+
+- **解像度**：Moonlightで要求した解像度に変更する。
+- **リフレッシュレート**：Moonlightで要求したFPSに変更する（ドライバーが対応する表示モードのみ）。
+- **拡大率（WindowsのDPIスケール）**：変更しない。Windowsの対象仮想モニターで指定した拡大率を使い続ける。必要ならWindowsのディスプレイ設定で一度だけ好みの値に固定する。
+- Moonlight側の **Optimize game settings（ゲーム設定を最適化）** を有効にする。解像度の自動変更に必要。
+
+`output_name` にモニターGUIDを設定した場合は `ensure_only_display` を使用する。未設定の場合は、物理モニターを誤って無効化しないよう `ensure_active` に切り替える。Headless運用のため、次項の手順で**Parsec仮想モニターのGUID**を設定すること。
+
+既存設定のほかの項目は変更しない。設定を変更する必要がある場合のみ書き込み、最初の変更時に `sunshine.conf.bak` を作成する。カスタム設定ファイル使用時は `-ConfigPath` を指定する。
+
 仮想モニターを生成した状態でSunshineのログ（`Currently available display devices`）を確認し、**Parsec仮想モニターの `device_id`** を配信対象に設定する。PnPアダプターIDの `ROOT\DISPLAY\...` と、SunshineのモニターGUIDは異なるので混同しないこと。
 
 ノートPCの蓋を閉じてもスリープしないよう電源設定を確認する。蓋を閉じて内蔵ディスプレイが切断されても、Parsec VDDの画面が有効なら配信可能な構成となる。
@@ -78,7 +98,7 @@ Sunshine-Headless.cmd --help
 ## 制約と注意
 
 - Sunshineがすでに起動中なら、元のPS1が二重起動を拒否する。
-- 仮想モニターの生成・寿命管理は `Start-Sunshine-ParsecVDD-v2.ps1` の処理に依存する。このファイルは既存の動作を保つため**変更していない**。
+- 仮想モニターの生成・寿命管理は `Start-Sunshine-ParsecVDD-v2.ps1` が担当し、VDDの動作ロジックは変更していない。設定ファイルの編集処理は新規 `Set-Sunshine-AutoDisplay.ps1` に分離している。
 - ポータブルSunshineのGame Capture / WGC方式はそのまま利用できるが、描画・配信の成否は環境とSunshine設定に依存する。
 - **通常動作中はPowerShellのプロセスが1つ残る**（仮想モニター維持のため）。Sunshineが終了すればこのプロセスも終了する。バックグラウンドサービスとしての常時稼働はしない。
 - 動作テストはソース・エンコーディング・ZIP整合性確認まで。Windows実機での起動・Headless配信はまだ検証していない。
